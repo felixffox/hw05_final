@@ -1,8 +1,9 @@
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
 from django.core.cache import cache
 from django.test import TestCase, Client
 
-from posts.models import Group, Post
+from posts.models import Group, Post, Follow
 
 User = get_user_model()
 
@@ -40,6 +41,13 @@ class PostURLTest(TestCase):
         user_author = PostURLTest.user
         self.authorized_client_author = Client()
         self.authorized_client_author.force_login(user_author)
+        self.follower = User.objects.create_user(username='follower')
+        self.follower_client = Client()
+        self.follower_client.force_login(self.follower)
+        self.follow_object = Follow.objects.create(
+            user=self.follower,
+            author=self.post.author
+        )
         cache.clear()
 
     def test_home_url(self):
@@ -74,6 +82,42 @@ class PostURLTest(TestCase):
             f'/posts/{self.post.id}/edit/'
         )
         self.assertEqual(response.status_code, 200)
+
+    def test_follow_index_url(self):
+        response = self.authorized_client.get('/follow/')
+        self.assertEqual(response.status_code, 200)
+        response = self.guest_client.get('/follow/')
+        self.assertRedirects(response, '/auth/login/?next=/follow/')
+
+    def test_profile_follow_url(self):
+        response = self.authorized_client.get(
+            f'/profile/{self.user}/follow/',
+            follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response = self.guest_client.get(
+            f'/profile/{self.user}/follow/',
+            follow=True
+        )
+        self.assertRedirects(
+            response,
+            f'/auth/login/?next=/profile/{self.user}/follow/'
+        )
+
+    def test_profile_unfollow(self):
+        response = self.follower_client.get(
+            f'/profile/{self.user}/unfollow/',
+            follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response = self.guest_client.get(
+            f'/profile/{self.user}/unfollow/',
+            follow=True
+        )
+        self.assertRedirects(
+            response,
+            f'/auth/login/?next=/profile/{self.user}/unfollow/'
+        )
 
     def test_guest_create_redirect(self):
         response = self.guest_client.get('/create/')

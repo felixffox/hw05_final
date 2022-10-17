@@ -8,6 +8,7 @@ from django.test import Client, TestCase, override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django import forms
+from requests import delete
 
 from posts.models import Group, Post, Comment
 from posts.models import Follow
@@ -116,20 +117,15 @@ class PostViewsTest(TestCase):
         self.assertEqual(post_image_0, 'posts/small.gif')
 
     def test_cache_index(self):
-        test_post = Post.objects.create(
-            text='some text',
-            author=self.user,
-            group=self.group_1
-        )
-        count_posts = Post.objects.count()
-        self.authorized_client.get(reverse('posts:index'))
-        self.assertEqual(count_posts, 2)
-
-        test_post.delete()
+        response_1 = self.authorized_client.get(reverse('posts:index')) # Я пытался следовать логике, описанной в ревью,
+        test_post = Post.objects.get(pk=1)                              # но не уверен, что сделал это верно, несмотря на то, что тест проходит
+        test_post.text = 'Измененный текст'
+        test_post.save()
+        response_2 = self.authorized_client.get(reverse('posts:index'))
+        self.assertEqual(response_1.content, response_2.content)
         cache.clear()
-
-        count_posts = Post.objects.count()
-        self.assertEqual(count_posts, 1)
+        response_3 = self.authorized_client.get(reverse('posts:index'))
+        self.assertNotEqual(response_1.content, response_3.content)
 
     def test_group_list_context(self):
         response = self.authorized_client.get(
@@ -165,12 +161,10 @@ class PostViewsTest(TestCase):
         post_author_0 = post_object.author.username
         post_group_0 = post_object.group.title
         post_image_0 = Post.objects.first().image
-#        post_comment_0 = Comment.objects.create()
         self.assertEqual(post_text_0, 'Test-post')
         self.assertEqual(post_author_0, 'HasNoName')
         self.assertEqual(post_group_0, 'Test-group')
         self.assertEqual(post_image_0, 'posts/small.gif')
-#        self.assertEqual(post_comment_0, 'Test-text')
 
     def test_post_create_context(self):
         response = self.authorized_client.get(reverse('posts:post_create'))
@@ -205,35 +199,11 @@ class PostViewsTest(TestCase):
             response = self.authorized_author.get(tested_url)
             self.assertEqual(len(response.context['page_obj'].object_list), 1)
 
-    def test_post_no_in_another_group(self):
-        response = self.guest_client.get(
+    def test_post_no_in_another_group(self): # Разве этот тест не проверяет в том числе, что пост одной группы не появился
+        response = self.guest_client.get(    # на странице другой?
             reverse('posts:group_list', kwargs={'slug': self.group_2.slug}))
         posts = response.context['page_obj'].object_list
         self.assertNotIn(self.post.pk, posts)
-
-    def test_comment(self):
-        form_data = {
-            'text': 'Текст комментария',
-        }
-        response_guest = self.guest_client.post(
-            reverse(
-                'posts:add_comment',
-                kwargs={'post_id': self.post.pk}
-            ), data=form_data
-        )
-        response_user = self.authorized_client.post(
-            reverse(
-                'posts:add_comment',
-                kwargs={'post_id': self.post.pk}
-            ), data=form_data
-        )
-        self.assertEqual(response_guest.status_code, 302)
-        self.assertEqual(response_user.status_code, 302)
-        self.assertRedirects(
-            response_guest,
-            f'/auth/login/?next=/posts/{self.post.pk}/comment/'
-        )
-        self.assertRedirects(response_user, f'/posts/{self.post.pk}/')
 
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
@@ -270,13 +240,23 @@ class FollowingTest(TestCase):
         cache.clear()
 
     def test_user_can_subscribe(self):
-        response = self.follower_client.get(reverse('posts:follow_index'))
-        self.assertEqual(len(response.context['page_obj']), 1)
+        self.follower_client.get(reverse('posts:follow_index'))
+        self.assertTrue(
+            Follow.objects.filter(
+                user=self.follower,
+                author=self.user.id
+            ).exists()
+        )
 
     def test_user_can_unsubscribe(self):
-        self.follow_object.delete()
-        response = self.follower_client.get(reverse('posts:follow_index'))
-        self.assertEqual(len(response.context['page_obj']), 0)
+        self.follower_client.get(reverse('posts:profile_unfollow',
+        kwargs={'username': self.user}))
+        self.assertFalse(
+            Follow.objects.filter(
+                user=self.follower,
+                author=self.user.id
+            ).exists()
+        )
 
     def test_following_post_in_feed(self):
         Follow.objects.create(

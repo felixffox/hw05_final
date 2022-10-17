@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
-from posts.models import Group, Post
+from posts.models import Group, Post, Comment
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
@@ -31,6 +31,11 @@ class PostCreateForm(TestCase):
             text='Test-text',
             group=cls.group
         )
+        cls.comment = Comment.objects.create(
+            text='Test-text',
+            author=cls.user,
+            post=cls.post
+        )
         cls.form = PostCreateForm()
         cache.clear()
 
@@ -40,6 +45,7 @@ class PostCreateForm(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
+        self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
         self.author_client = Client()
@@ -134,5 +140,58 @@ class PostCreateForm(TestCase):
                 text='Test-text',
                 group=self.group.id,
                 image='posts/small.gif'
+            ).exists()
+        )
+
+    def test_comment(self):
+        form_data = {
+            'text': 'Текст комментария',
+        }
+        response_guest = self.guest_client.post(
+            reverse(
+                'posts:add_comment',
+                kwargs={'post_id': self.post.pk}
+            ), data=form_data
+        )
+        response_user = self.authorized_client.post(
+            reverse(
+                'posts:add_comment',
+                kwargs={'post_id': self.post.pk}
+            ), data=form_data
+        )
+        self.assertEqual(response_guest.status_code, 302)
+        self.assertEqual(response_user.status_code, 302)
+        self.assertRedirects(
+            response_guest,
+            f'/auth/login/?next=/posts/{self.post.pk}/comment/'
+        )
+        self.assertRedirects(response_user, f'/posts/{self.post.pk}/')
+        self.assertTrue(
+            Comment.objects.filter(
+                author=self.user.id,
+                text='Текст комментария',
+                post=self.post.id
+            ).exists()
+        )
+
+    def test_comment_save(self):
+        comments_count = Comment.objects.count()
+        form_data = {
+            'text': 'Test-text',
+        }
+        response = self.authorized_client.post(
+            reverse('posts:add_comment', kwargs={'post_id': self.post.id}),
+            data=form_data,
+            follow=True
+        )
+        self.assertRedirects(response, reverse(
+            'posts:post_detail', kwargs={'post_id': self.post.pk}
+        ))
+        self.assertEqual(comments_count, 1)
+        self.assertTrue(
+            Comment.objects.filter(
+                author=self.user.id,
+                text='Test-text',
+                post=self.post.id
             ).exists()
         )

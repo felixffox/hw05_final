@@ -23,7 +23,7 @@ def index(request):
 
 def group_posts(request, slug):
     group = get_object_or_404(Group, slug=slug)
-    post_list = Post.objects.all()
+    post_list = group.posts.all()
     page_obj = paginator_utils(post_list, request)
     context = {
         'group': group,
@@ -36,14 +36,14 @@ def profile(request, username):
     author = get_object_or_404(User, username=username)
     post_list = author.posts.all()
     paje_obj = paginator_utils(post_list, request)
-    if request.user.is_authenticated:
-        flw = Follow.objects.filter(author=author, user=request.user).exists()
-    else:
-        flw = False
+    following = (
+    request.user.is_authenticated and
+    Follow.objects.filter(user=request.user, author=author).exists()
+    )
     context = {
         'author': author,
         'page_obj': paje_obj,
-        'following': flw,
+        'following': following,
     }
     return render(request, 'posts/profile.html', context)
 

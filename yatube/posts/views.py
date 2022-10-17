@@ -37,8 +37,8 @@ def profile(request, username):
     post_list = author.posts.all()
     paje_obj = paginator_utils(post_list, request)
     following = (
-    request.user.is_authenticated and
-    Follow.objects.filter(user=request.user, author=author).exists()
+        request.user.is_authenticated
+        and Follow.objects.filter(user=request.user, author=author).exists()
     )
     context = {
         'author': author,

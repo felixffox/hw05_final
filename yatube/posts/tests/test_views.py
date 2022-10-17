@@ -8,7 +8,6 @@ from django.test import Client, TestCase, override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django import forms
-from requests import delete
 
 from posts.models import Group, Post, Comment
 from posts.models import Follow
@@ -117,8 +116,10 @@ class PostViewsTest(TestCase):
         self.assertEqual(post_image_0, 'posts/small.gif')
 
     def test_cache_index(self):
-        response_1 = self.authorized_client.get(reverse('posts:index')) # Я пытался следовать логике, описанной в ревью,
-        test_post = Post.objects.get(pk=1)                              # но не уверен, что сделал это верно, несмотря на то, что тест проходит
+        response_1 = self.authorized_client.get(reverse('posts:index'))
+        # Я пытался следовать логике, описанной в ревью,
+        # но не уверен, что сделал это верно, несмотря на то, что тест проходит
+        test_post = Post.objects.get(pk=1)
         test_post.text = 'Измененный текст'
         test_post.save()
         response_2 = self.authorized_client.get(reverse('posts:index'))
@@ -199,8 +200,11 @@ class PostViewsTest(TestCase):
             response = self.authorized_author.get(tested_url)
             self.assertEqual(len(response.context['page_obj'].object_list), 1)
 
-    def test_post_no_in_another_group(self): # Разве этот тест не проверяет в том числе, что пост одной группы не появился
-        response = self.guest_client.get(    # на странице другой?
+    def test_post_no_in_another_group(self):
+        # Разве этот тест не проверяет в том числе,
+        # что пост одной группы не появился
+        # на странице другой?
+        response = self.guest_client.get(
             reverse('posts:group_list', kwargs={'slug': self.group_2.slug}))
         posts = response.context['page_obj'].object_list
         self.assertNotIn(self.post.pk, posts)
@@ -249,8 +253,9 @@ class FollowingTest(TestCase):
         )
 
     def test_user_can_unsubscribe(self):
-        self.follower_client.get(reverse('posts:profile_unfollow',
-        kwargs={'username': self.user}))
+        self.follower_client.get(reverse(
+            'posts:profile_unfollow',
+            kwargs={'username': self.user}))
         self.assertFalse(
             Follow.objects.filter(
                 user=self.follower,

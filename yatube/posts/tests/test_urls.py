@@ -85,6 +85,8 @@ class PostURLTest(TestCase):
     def test_follow_index_url(self):
         response = self.authorized_client.get('/follow/')
         self.assertEqual(response.status_code, 200)
+
+    def test_follow_index_for_guest(self):
         response = self.guest_client.get('/follow/')
         self.assertRedirects(response, '/auth/login/?next=/follow/')
 
@@ -94,6 +96,8 @@ class PostURLTest(TestCase):
             follow=True
         )
         self.assertEqual(response.status_code, 200)
+
+    def test_profile_follow_for_guest(self):
         response = self.guest_client.get(
             f'/profile/{self.user}/follow/',
             follow=True
@@ -109,6 +113,8 @@ class PostURLTest(TestCase):
             follow=True
         )
         self.assertEqual(response.status_code, 200)
+
+    def test_profile_unfollow_for_guest(self):
         response = self.guest_client.get(
             f'/profile/{self.user}/unfollow/',
             follow=True
@@ -130,6 +136,16 @@ class PostURLTest(TestCase):
         self.assertRedirects(
             response,
             f'/auth/login/?next=/posts/{self.post.id}/edit/'
+        )
+
+    def test_guest_comment_redirect(self):
+        response_guest = self.guest_client.get(
+            f'/posts/{self.post.id}/comment/',
+            follow=True
+        )
+        self.assertRedirects(
+            response_guest,
+            f'/auth/login/?next=/posts/{self.post.pk}/comment/'
         )
 
     def test_authorized_client_not_author_edit_redirect(self):

@@ -10,6 +10,8 @@ from .models import Post, Group, Follow
 
 from .utils import paginator_utils
 
+PAGINATOR_PAGE = 10
+
 
 @cache_page(20, key_prefix='index_page')
 def index(request):
@@ -116,11 +118,8 @@ def add_comment(request, post_id):
 @login_required
 def follow_index(request):
     posts = Post.objects.filter(author__following__user=request.user)
-    paginator = Paginator(posts, 10)
-
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
+    paginator = Paginator(posts, PAGINATOR_PAGE)
+    page_obj = paginator_utils(posts, request)
     context = {
         'page_obj': page_obj,
         'paginator': paginator,
@@ -144,10 +143,8 @@ def profile_follow(request, username):
 @login_required
 def profile_unfollow(request, username):
     author = get_object_or_404(User, username=username)
-    follow = get_object_or_404(
-        Follow,
+    Follow.objects.filter(
         user=request.user,
         author=author
-    )
-    follow.delete()
+    ).delete()
     return redirect('posts:profile', username=username)

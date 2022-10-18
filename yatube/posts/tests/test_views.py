@@ -117,9 +117,7 @@ class PostViewsTest(TestCase):
 
     def test_cache_index(self):
         response_1 = self.authorized_client.get(reverse('posts:index'))
-        # Я пытался следовать логике, описанной в ревью,
-        # но не уверен, что сделал это верно, несмотря на то, что тест проходит
-        test_post = Post.objects.get(pk=1)
+        test_post = Post.objects.get()
         test_post.text = 'Измененный текст'
         test_post.save()
         response_2 = self.authorized_client.get(reverse('posts:index'))
@@ -201,13 +199,19 @@ class PostViewsTest(TestCase):
             self.assertEqual(len(response.context['page_obj'].object_list), 1)
 
     def test_post_no_in_another_group(self):
-        # Разве этот тест не проверяет в том числе,
-        # что пост одной группы не появился
-        # на странице другой?
-        response = self.guest_client.get(
+        response = self.authorized_client.get(
             reverse('posts:group_list', kwargs={'slug': self.group_2.slug}))
         posts = response.context['page_obj'].object_list
-        self.assertNotIn(self.post.pk, posts)
+        self.assertEqual(len(posts), 0)
+
+    def test_post_with_comment(self):
+        self.authorized_client.post(
+            f'/posts/{self.post.id}/comment/',
+            {'text': 'Test-text'},
+            follow=True
+        )
+        response = self.authorized_client.get(f'/posts/{self.post.id}/')
+        self.assertContains(response, 'Test-text')
 
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
@@ -244,7 +248,9 @@ class FollowingTest(TestCase):
         cache.clear()
 
     def test_user_can_subscribe(self):
-        self.follower_client.get(reverse('posts:follow_index'))
+        self.follower_client.get(reverse(
+            'posts:profile_follow',
+            kwargs={'username': self.user}))
         self.assertTrue(
             Follow.objects.filter(
                 user=self.follower,

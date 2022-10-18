@@ -79,7 +79,7 @@ class PostCreateForm(TestCase):
 
     def test_edit_post(self):
         posts_count = Post.objects.count()
-        old_post = Post.objects.get(pk=self.post.id)
+        old_post = Post.objects.get()
         another_group = Group.objects.create(
             title='Test-title-2',
             slug='test-slug-2'
@@ -170,28 +170,6 @@ class PostCreateForm(TestCase):
             Comment.objects.filter(
                 author=self.user.id,
                 text='Текст комментария',
-                post=self.post.id
-            ).exists()
-        )
-
-    def test_comment_save(self):
-        comments_count = Comment.objects.count()
-        form_data = {
-            'text': 'Test-text',
-        }
-        response = self.authorized_client.post(
-            reverse('posts:add_comment', kwargs={'post_id': self.post.id}),
-            data=form_data,
-            follow=True
-        )
-        self.assertRedirects(response, reverse(
-            'posts:post_detail', kwargs={'post_id': self.post.pk}
-        ))
-        self.assertEqual(comments_count, 1)
-        self.assertTrue(
-            Comment.objects.filter(
-                author=self.user.id,
-                text='Test-text',
                 post=self.post.id
             ).exists()
         )

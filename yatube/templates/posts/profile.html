@@ -14,7 +14,7 @@
       <h3>Всего постов: {{ author.posts.count }}</h3>
       <h3>Всего подписок: {{ author.profile_following.count }}</h3>
       <h3>Всего подписчиков: {{ author.following.count }}</h3>
-      {% if user.is_authenticated %}
+      {% if user.is_authenticated != author %}
         {% if following %}
           <a class="btn btn-lg btn-light" href="{% url 'posts:profile_unfollow' author.username %}" role="button">
           Отписаться

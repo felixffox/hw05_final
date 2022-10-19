@@ -205,10 +205,10 @@ class PostViewsTest(TestCase):
         self.assertEqual(len(posts), 0)
 
     def test_post_with_comment(self):
-        self.authorized_client.post(
-            f'/posts/{self.post.id}/comment/',
-            {'text': 'Test-text'},
-            follow=True
+        Comment.objects.create(
+            text='Test-text',
+            author=self.user,
+            post=self.post
         )
         response = self.authorized_client.get(f'/posts/{self.post.id}/')
         self.assertContains(response, 'Test-text')

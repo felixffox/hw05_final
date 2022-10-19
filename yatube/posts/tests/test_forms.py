@@ -147,24 +147,13 @@ class PostCreateForm(TestCase):
         form_data = {
             'text': 'Текст комментария',
         }
-        response_guest = self.guest_client.post(
-            reverse(
-                'posts:add_comment',
-                kwargs={'post_id': self.post.pk}
-            ), data=form_data
-        )
         response_user = self.authorized_client.post(
             reverse(
                 'posts:add_comment',
                 kwargs={'post_id': self.post.pk}
             ), data=form_data
         )
-        self.assertEqual(response_guest.status_code, 302)
         self.assertEqual(response_user.status_code, 302)
-        self.assertRedirects(
-            response_guest,
-            f'/auth/login/?next=/posts/{self.post.pk}/comment/'
-        )
         self.assertRedirects(response_user, f'/posts/{self.post.pk}/')
         self.assertTrue(
             Comment.objects.filter(
